@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram Mini App</title>
+  <script async src="https://telegram.org/js/telegram-widget.js?19" data-telegram-login="@Tgjvbot" data-size="large" data-auth-url="" data-request-access="write"></script>
+</head>
+
+<body>
+  <h1>Welcome to the Telegram Mini App</h1>
+  <p>Authenticate to use the app:</p>
+  <div id="auth-area"></div>
+  <h2>Counter App</h2>
+  <p>Click the button to increment the counter and save progress:</p>
+  <h3>Counter: <span id="counter">0</span></h3>
+  <button id="increment">Add One</button>
+  <button id="save">Save Progress</button>
+  <button id="load">Load Progress</button>
+
+  <script>
+    // Initial counter value
+    let counter = 0;
+    const botToken = '7960735461:AAG6lnTK1-lMnjCW0VzFyoOwSbBbV79ZqlQ'; // Replace with your bot's token
+    let userId = null; // Will store the authenticated user's Telegram ID
+
+    // Elements
+    const counterDisplay = document.getElementById('counter');
+    const incrementButton = document.getElementById('increment');
+    const saveButton = document.getElementById('save');
+    const loadButton = document.getElementById('load');
+    const authArea = document.getElementById('auth-area');
+
+    // Telegram Login Widget Callback
+    window.TelegramLoginWidgetCallback = function(user) {
+      userId = user.id; // Store the user's Telegram ID
+      authArea.innerHTML = `<p>Welcome, ${user.first_name}! Your Telegram ID is ${user.id}.</p>`;
+    };
+
+    // Increment counter
+    incrementButton.addEventListener('click', () => {
+      counter++;
+      counterDisplay.textContent = counter;
+    });
+
+    // Save progress via Telegram bot
+    saveButton.addEventListener('click', () => {
+      if (!userId) {
+        alert('Please log in with Telegram first!');
+        return;
+      }
+
+      const progressMessage = `Counter progress for user ${userId}: ${counter}`;
+
+      fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: userId,
+            text: progressMessage,
+          }),
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.ok) {
+            alert('Progress saved successfully!');
+          } else {
+            alert('Failed to save progress.');
+          }
+        })
+        .catch(error => console.error('Error:', error));
+    });
+
+    // Load progress via Telegram bot
+    loadButton.addEventListener('click', () => {
+      if (!userId) {
+        alert('Please log in with Telegram first!');
+        return;
+      }
+
+      fetch(`https://api.telegram.org/bot${botToken}/getUpdates`)
+        .then(response => response.json())
+        .then(data => {
+          const messages = data.result;
+          const userMessages = messages.filter(
+            message => message.message?.chat.id == userId
+          );
+
+          if (userMessages.length > 0) {
+            // Extract last message
+            const lastMessage = userMessages[userMessages.length - 1].message.text;
+
+            // Parse counter from the message
+            const match = lastMessage.match(/Counter progress for user \d+: (\d+)/);
+            if (match) {
+              counter = parseInt(match[1]);
+              counterDisplay.textContent = counter;
+              alert('Progress loaded successfully!');
+            } else {
+              alert('No valid progress found.');
+            }
+          } else {
+            alert('No messages found for this user.');
+          }
+        })
+        .catch(error => console.error('Error:', error));
+    });
+  </script>
+</body>
+
+</html>
